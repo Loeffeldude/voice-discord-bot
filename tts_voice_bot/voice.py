@@ -1,16 +1,14 @@
-import wave
-import pydub
 import subprocess
-import pathlib
 import os
-import requests
 import discord
 import aiohttp
 import asyncio
 
-BASE_URL = "https://api.elevenlabs.io"
-STABILITY = 0.7
-SIMILARITY_BOOST = 0.7
+from tts_voice_bot.settings import (
+    ELEVEN_LABS_BASE_URL as BASE_URL,
+    STABILITY,
+    SIMILARITY_BOOST,
+)
 
 
 async def stream_voice(text, voice_id, chunck_size=1024):
@@ -31,7 +29,11 @@ async def stream_voice(text, voice_id, chunck_size=1024):
                     yield chunk
 
 
-async def voice_to_pcm(text, voice_id):
+def voice_to_pcm(text, voice_id):
+    """
+    Reads the voice from the API and returns a discord.PCMAudio object
+    This function is blocking
+    """
     stream = stream_voice(text, voice_id, chunck_size=7680)
 
     process = subprocess.Popen(
@@ -46,8 +48,10 @@ async def voice_to_pcm(text, voice_id):
         async for chunk in stream:
             process.stdin.write(chunk)
             process.stdin.flush()
+        # the mpg123 process will exit after everything is read from stdin
+        # so we don't need to close it
         process.stdin.close()
 
-    asyncio.create_task(write_to_process())
+    asyncio.run_coroutine_threadsafe(write_to_process(), loop=asyncio.get_event_loop())
 
     return audio
