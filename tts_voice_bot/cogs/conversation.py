@@ -3,7 +3,7 @@ from typing import Union
 import discord
 
 
-from tts_voice_bot.cogs.personality import PersonalityCog
+from tts_voice_bot.cogs.personality import PersonalityCog, get_personality_options
 from tts_voice_bot.personalities.personality import Personality
 
 
@@ -19,7 +19,7 @@ class ConversationCog(discord.Cog):
         if not self.personality_cog:
             self.personality_cog = self.bot.get_cog(PersonalityCog.__name__)
 
-        return self.personality_cog.personalities.get(personality_name, None)
+        return self.personality_cog.get_personality_cls(personality_name)
 
     def should_ignore_message(self, message: discord.Message):
         if message.author.bot:
@@ -61,7 +61,8 @@ class ConversationCog(discord.Cog):
 
             await thread.send(response)
         if message.author.voice and message.author.voice.channel:
-            await personality.talk(message.author.voice.channel, response)
+            # await personality.talk(message.author.voice.channel, response)
+            pass
 
     @discord.slash_command()
     @discord.default_permissions(manage_messages=True)
@@ -71,16 +72,13 @@ class ConversationCog(discord.Cog):
         personality_name: discord.Option(
             str,
             description="The personality to use for the conversation",
-            choices=[
-                discord.OptionChoice(personality, personality)
-                for personality in PersonalityCog.get_personalities().keys()
-            ],
+            choices=get_personality_options(),
             required=True,
         ),
     ):
         personality_cls = self.get_personality(personality_name)
 
-        if not personality_cls:
+        if personality_cls == None:
             await ctx.respond(
                 "Personality not found. To get a list of all personalities, use /list_personalities"
             )
@@ -105,3 +103,4 @@ class ConversationCog(discord.Cog):
         thread, _ = await asyncio.gather(thread_cor, edit_cor)
 
         await personality.setup_thread(thread)
+        await ctx.respond()
